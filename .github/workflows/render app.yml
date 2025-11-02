@@ -1,0 +1,28 @@
+name: Travel Book render
+
+on:
+  schedule:
+    - cron: '0 10 * * *'  # Every 15 minutes
+  workflow_dispatch: # This allows manual triggering
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+
+    - name: Set up Node.js
+      uses: actions/setup-node@v3
+      with:
+        node-version: '22.12.0'
+
+    - name: Install dependencies
+      run: npm install
+
+    - name: Deploy to Render
+      run: |
+        curl -X POST https://api.render.com/v1/services/srv-cu0mqgjqf0us73b1c3f0/deploys \
+        -H 'Authorization: Bearer rnd_EZtQ5AVb6minJwCxPNuGEVrSwOxQ' \
+        -H 'Content-Type: application/json'
