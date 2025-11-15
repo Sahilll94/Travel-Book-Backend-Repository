@@ -92,6 +92,7 @@ const { sendLoginNotification } = require("./sendLoginNotification");
 const upload = require("./multer");
 const fs = require("fs");
 const path = require("path");
+const { Readable } = require("stream");
 const { error } = require("console");
 
 mongoose.connect(config.connectionString)
@@ -1085,9 +1086,26 @@ app.put("/update-profile-image", authenticateToken, upload.single("image"), asyn
             });
         }
 
-        // Upload to Cloudinary
-        const result = await cloudinary.uploader.upload(req.file.path, {
-            folder: "travel_book/profiles",
+        // Upload buffer directly to Cloudinary using a stream
+        const result = await new Promise((resolve, reject) => {
+            const uploadStream = cloudinary.uploader.upload_stream(
+                {
+                    folder: "travel_book/profiles",
+                    resource_type: "auto",
+                    quality: "auto",
+                },
+                (error, result) => {
+                    if (error) {
+                        reject(error);
+                    } else {
+                        resolve(result);
+                    }
+                }
+            );
+
+            // Create a readable stream from the buffer and pipe it
+            const bufferStream = Readable.from(req.file.buffer);
+            bufferStream.pipe(uploadStream);
         });
 
         // Update user profile with new image URL
@@ -1104,14 +1122,15 @@ app.put("/update-profile-image", authenticateToken, upload.single("image"), asyn
         await user.save();
 
         return res.status(200).json({
+            error: false,
             profileImage: result.secure_url,
             message: "Profile image updated successfully"
         });
     } catch (error) {
-        console.error("Error updating profile image:", error);
+        console.error("Profile image upload error:", error);
         return res.status(500).json({
             error: true,
-            message: "Failed to update profile image"
+            message: error.message || "Failed to update profile image"
         });
     }
 });
@@ -1126,15 +1145,40 @@ app.post("/image-upload", upload.single("image"), async (req, res) => {
             });
         }
 
-        // Upload to Cloudinary
-        const result = await cloudinary.uploader.upload(req.file.path, {
-            folder: "travel_book", // optional, to organize your uploads
+        // Upload buffer directly to Cloudinary using upload_stream
+        const result = await new Promise((resolve, reject) => {
+            const uploadStream = cloudinary.uploader.upload_stream(
+                {
+                    folder: "travel_book", // Organize uploads by folder
+                    resource_type: "auto",
+                    quality: "auto",
+                },
+                (error, result) => {
+                    if (error) {
+                        reject(error);
+                    } else {
+                        resolve(result);
+                    }
+                }
+            );
+
+            // Create a readable stream from the buffer and pipe it
+            const bufferStream = Readable.from(req.file.buffer);
+            bufferStream.pipe(uploadStream);
         });
 
         // Respond with the image URL
-        res.status(200).json({ imageUrl: result.secure_url });
+        res.status(200).json({ 
+            error: false,
+            imageUrl: result.secure_url,
+            message: "Image uploaded successfully"
+        });
     } catch (error) {
-        res.status(500).json({ error: true, message: error.message });
+        console.error("Image upload error:", error);
+        res.status(500).json({ 
+            error: true, 
+            message: error.message || "Failed to upload image"
+        });
     }
 });
 

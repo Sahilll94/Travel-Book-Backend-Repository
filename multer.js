@@ -1,15 +1,8 @@
 const multer = require("multer");
 const path = require("path");
 
-// Storage configuration
-const storage = multer.diskStorage({
-    destination: function (req, file, cb) {
-        cb(null, "./uploads/"); // Destination folder for storing uploaded files
-    },
-    filename: function (req, file, cb) {
-        cb(null, Date.now() + path.extname(file.originalname)); // Unique filename
-    },
-});
+// Use memory storage since we'll upload directly to Cloudinary
+const storage = multer.memoryStorage();
 
 // File filter to accept only images
 const fileFilter = (req, file, cb) => {
@@ -20,7 +13,13 @@ const fileFilter = (req, file, cb) => {
     }
 };
 
-// Initialize multer instance
-const upload = multer({ storage, fileFilter });
+// Initialize multer instance with memory storage
+const upload = multer({ 
+    storage, 
+    fileFilter,
+    limits: {
+        fileSize: 10 * 1024 * 1024 // 10MB file size limit
+    }
+});
 
 module.exports = upload;
